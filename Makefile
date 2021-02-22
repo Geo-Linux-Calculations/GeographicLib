@@ -3,106 +3,46 @@
 ## Copyright (c) 2002-2004 by Parinya Thipchart
 #################################################################
 
-ifneq (,$(findstring Release, $(CFG)))
-  override CFG = Release
-else
-  override CFG = Debug
-endif
-
 PROJECT = geodesic
-CC = gcc.exe
-
-WINDRES = "$(COMPILER_BIN)windres.exe"
-ifeq ($(CFG),Debug)
-  OBJ_DIR = bin\Debug
-  OUTPUT_DIR = bin\Debug
-  TARGET = geodesic.dll
-  C_INCLUDE_DIRS = 
-  C_PREPROC = 
-  CFLAGS = -pipe -std=c99 -Wall -g2 -O0 
-  RC_INCLUDE_DIRS = 
-  RC_PREPROC = 
-  RCFLAGS = 
-  LIB_DIRS = 
-  LIBS = 
-  LDFLAGS = -pipe -shared -Wl,--output-def,"$(OBJ_DIR)\geodesic.def",--out-implib,"$(OBJ_DIR)\libgeodesic.dll.a" -static-libgcc
-endif
-
-ifeq ($(CFG),Release)
-  OBJ_DIR = bin\Release
-  OUTPUT_DIR = bin\Release
-  TARGET = geodesic.dll
-  C_INCLUDE_DIRS = 
-  C_PREPROC = -DHAVE_C99_MATH 
-  CFLAGS = -fPIE -pipe -std=c99 -g0 -O2 -Wall -Wextra -Wfloat-conversion -Wno-array-bounds -pedantic
-  RC_INCLUDE_DIRS = 
-  RC_PREPROC = 
-  RCFLAGS = 
-  LIB_DIRS = 
-  LIBS = 
-  LDFLAGS = -pipe -shared -Wl,--output-def,"$(OBJ_DIR)\geodesic.def",--out-implib,"$(OBJ_DIR)\libgeodesic.dll.a" -s -static-libgcc
-endif
+SOVER = 1
+SRCS = src
+CC = gcc
+CFLAGS = -Wall -Wextra -std=c99 -O2
+LDFLAGS = -lm -s
+AR = ar
+RM = rm -f
 
 ifeq ($(OS),Windows_NT)
   NULL =
+  PLIBSTATIC = $(PROJECT).a
+  PLIBSHARED = $(PROJECT).dll
+  WINDRES = windres
+  RESS = $(SRCS)/geodesic.res
 else
   NULL = nul
+  PLIBSTATIC = lib$(PROJECT).a
+  PLIBSHARED = lib$(PROJECT).so.$(SOVER)
 endif
+PLIBS = $(PLIBSTATIC) $(PLIBSHARED)
+PTEST = geodtest
 
-SRC_OBJS = \
-  $(OBJ_DIR)/geodesic.o
+OBJS = $(SRCS)/geodesic.o
 
-RSRC_OBJS = \
-  $(OBJ_DIR)/geodesic.res
+.PHONY: all clean
 
-define build_target
-@echo Linking...
-@$(CC) -o "$(OUTPUT_DIR)\$(TARGET)" $(SRC_OBJS) $(RSRC_OBJS) $(LIB_DIRS) $(LIBS) $(LDFLAGS)
-endef
+all: $(PLIBS) $(PTEST)
 
-define compile_resource
-@echo Compiling $<
-@$(WINDRES) $(RCFLAGS) $(RC_PREPROC) $(RC_INCLUDE_DIRS) -O COFF -i "$<" -o "$@"
-endef
+$(PLIBSTATIC): $(OBJS)
+	$(AR) rcs $@ $(OBJS)
 
-define compile_source
-@echo Compiling $<
-@$(CC) $(CFLAGS) $(C_PREPROC) $(C_INCLUDE_DIRS) -c "$<" -o "$@"
-endef
+$(PLIBSHARED): $(OBJS)
+	$(CC) -shared $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-.PHONY: print_header directories
+$(PTEST): $(SRCS)/$(PTEST)/$(PTEST).c $(PLIBSTATIC)
+	$(CC) $(CFLAGS) -I$(SRCS) $^ -o $@ $(LDFLAGS)
 
-$(TARGET): print_header directories $(RSRC_OBJS) $(SRC_OBJS)
-	$(build_target)
-
-.PHONY: clean cleanall
-
-cleanall:
-	@echo Deleting intermediate files for 'geodesic - $(CFG)'
-	-@del $(OBJ_DIR)\*.o
-	-@del $(OBJ_DIR)\*.res
-	-@del "$(OUTPUT_DIR)\$(TARGET)"
-	-@del "$(OBJ_DIR)\$(PROJECT).def"
-	-@del "$(OBJ_DIR)\lib$(PROJECT).dll.a"
-	-@rmdir "$(OUTPUT_DIR)"
+$(OBJS): $(SRCS)/geodesic.c
+	$(CC) -c $(CFLAGS) $< -o $@ $(LDFLAGS)
 
 clean:
-	@echo Deleting intermediate files for 'geodesic - $(CFG)'
-	-@del $(OBJ_DIR)\*.o
-	-@del $(OBJ_DIR)\*.res
-
-print_header:
-	@echo ----------Configuration: geodesic - $(CFG)----------
-
-directories:
-	-@if not exist "$(OUTPUT_DIR)\$(NULL)" mkdir "$(OUTPUT_DIR)"
-	-@if not exist "$(OBJ_DIR)\$(NULL)" mkdir "$(OBJ_DIR)"
-
-$(OBJ_DIR)/geodesic.res: geodesic.rc
-
-	$(compile_resource)
-
-$(OBJ_DIR)/geodesic.o: geodesic.c	\
-geodesic.h
-	$(compile_source)
-
+	$(RM) $(OBJS) $(PLIBS) $(PTEST)

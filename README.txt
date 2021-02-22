@@ -20,8 +20,4 @@ example programs directly with something like:
 Alternatively, you can build the examples using cmake.  For example, on
 Linux systems you might do:
 
-  mkdir BUILD
-  cd BUILD
-  cmake ..
   make
-  echo 30 0 29.5 179.5 | ./inverse
